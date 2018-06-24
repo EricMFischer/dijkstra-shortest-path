@@ -26,7 +26,6 @@ their positions in the heap.
 '''
 import pprint
 import time
-import math
 
 
 # input: file name
@@ -46,11 +45,11 @@ def preprocess_adj_list(filename):
 # output: Graph instantiated with input graph object
 def create_graph(graph_obj):
     G = Graph()
-    for v_key in graph_obj:
-        v = Vertex(int(v_key))
-        for nbr in graph_obj[v_key]:
-            w_key, edge = nbr.split(',')
-            v.add_nbr(int(w_key), int(edge))
+    for v_k in graph_obj:
+        v = Vertex(int(v_k))
+        for nbr in graph_obj[v_k]:
+            w_k, edge = nbr.split(',')
+            v.add_nbr(int(w_k), int(edge))
         G.add_v(v)
     return G
 
@@ -185,6 +184,7 @@ class Heap():
             output += str(v) + txt
         return output + ']'
 
+    # input: parent and child nodes
     def _is_balanced(self, p, c):
         is_min_heap = p <= c
         return is_min_heap if self._min_heap else not is_min_heap
@@ -192,24 +192,38 @@ class Heap():
     def _swap(self, i, j):
         self._heap[i], self._heap[j] = self._heap[j], self._heap[i]
 
+    # input: parent and child indices
+    def _sift_up(self, p_i, c_i):
+        p = self._heap[p_i]
+        c = self._heap[c_i]
+        while (not self._is_balanced(p, c)):
+            p_i = (c_i - 1) // 2
+            self._swap(c_i, p_i)
+
+            c_i = p_i
+            p = self._heap[(c_i - 1) // 2]
+
+    # input: parent and child indices
+    def _sift_down(self, p_i, c_i):
+        while (c_i and not self._is_balanced(self._heap[p_i], self._heap[c_i])):
+            self._swap(p_i, c_i)
+            p_i = c_i
+            c_i = self._get_swapped_child_index(p_i)
+
+    def get_nodes(self):
+        return self._heap
+
     # inserts node in O(logn) time
     def insert(self, node):
         self._heap.append(node)
         node_i = len(self._heap) - 1
-        p = self._heap[math.floor(node_i / 2)]
-
-        while (not self._is_balanced(p, node)):
-            p_i = math.floor(node_i / 2)
-            self._swap(node_i, p_i)
-
-            node_i = p_i
-            p = self._heap[math.floor(node_i / 2)]
+        self._sift_up((node_i - 1) // 2, node_i)
 
         return self._heap
 
     # input: parent index
     # output: index of smaller or greater child, one index if other DNE, or None
-    def _get_swapped_child_i(self, p_i):
+    def _get_swapped_child_index(self, p_i):
         size = len(self._heap)
         i = p_i * 2 + 1
         j = p_i * 2 + 2
@@ -226,13 +240,8 @@ class Heap():
     def _extract_root(self):
         self._swap(0, len(self._heap) - 1)
         root = self._heap.pop()
+        self._sift_down(0, self._get_swapped_child_index(0))
 
-        p_i = 0
-        c_i = self._get_swapped_child_i(p_i)
-        while (c_i and not self._is_balanced(self._heap[p_i], self._heap[c_i])):
-            self._swap(p_i, c_i)
-            p_i = c_i
-            c_i = self._get_swapped_child_i(p_i)
         return root
 
     # extracts minimum value in O(logn) time
@@ -248,7 +257,17 @@ class Heap():
         return self._extract_root()
 
     # deletes node from anywhere in heap in O(logn) time
-    def delete(self):
+    # input: key (i.e. index) of node to delete
+    def delete(self, key):
+        self._swap(key, len(self._heap) - 1)
+        self._heap.pop()
+
+        p_i = (key - 1) // 2
+        if not self._is_balanced(self._heap[p_i], self._heap[key]):
+            self._sift_up(p_i, key)
+        else:
+            self._sift_down(p_i, key)
+
         return self._heap
 
     # initializes a heap in O(n) time
@@ -256,47 +275,66 @@ class Heap():
         return self._heap
 
 
+# input: array of nodes and order defaulted to 1 for min heap
+# output: Heap instantiated with intput array of nodes
+def create_heap(nodes, order=1):
+    heap = Heap(order)
+    for node in nodes:
+        heap.insert(node)
+    return heap
+
+
 # input: Graph, source vertex key, and vertices to which to find a shortest path
-# output: shortest paths from source to input vertices
-def dijkstra_shortest_path(G, source_key, vertices):
-    X = {}  # vertices explored so far
-    A = {}  # shortest path distances from source vertex 1
-    X[source_key] = 1
-    A[source_key] = 0
+# output: shortest path distances from source to input vertices
+def dijkstra_shortest_path(G, source_k, vertices):
+    X = {}  # vertices explored
+    A = {}  # shortest path distances from source vertex
+    X[source_k] = 1
+    A[source_k] = 0
+    heap = Heap()
+    path_v_map = {}
 
     G_keys_len = len(G.get_v_keys())
     while len(X.keys()) is not G_keys_len:
         # records shortest path for every explored vertex to one of its unexplored neighbors
-        # Ex: {100: [2,3]} -> shortest path from vertex 2 is to vertex 3 with a distance of 100
+        # Ex: {100: [2,3]} -> shortest path from vertex 2 is to 3 with a distance of 100
         shortest_paths = {}
 
-        for v_key in X:
-            v = G.get_v(v_key)
+        for v_k in X:
+            v = G.get_v(v_k)
             nbr_keys = list(filter(lambda k: k not in X, v.get_nbr_keys()))
 
             nbr_paths = {}
-            for nbr_key in nbr_keys:
+            for nbr_k in nbr_keys:
                 # local shortest path
-                nbr_paths[nbr_key] = A[v_key] + v.get_edge(nbr_key)
+                nbr_paths[nbr_k] = A[v_k] + v.get_edge(nbr_k)
+                # path = A[v_k] + v.get_edge(nbr_k)
+                # heap.insert(path)
+                # path_v_map[path] = nbr_k
 
             if nbr_paths:
-                min_nbr_key = min(nbr_paths, key=nbr_paths.get)
-                # record shortest path for v_key, e.g. 2
-                shortest_paths[nbr_paths[min_nbr_key]] = [v_key, min_nbr_key]  # {100: [2,3]}
+                min_nbr_k = min(nbr_paths, key=nbr_paths.get)
+                # record shortest path for v_k. if v_k = 2, {100: [2,3]}
+                shortest_paths[nbr_paths[min_nbr_k]] = [v_k, min_nbr_k]
+            # if heap.get_nodes():
+            #     min_path = heap.extract_min()
+            #     min_nbr_k = path_v_map[min_path]
+            #     shortest_paths[min_path] = [v_k, min_nbr_k]
 
         # book-keeping
-        v_key, w_key = shortest_paths[min(shortest_paths.keys())]
-        X[w_key] = 1
-        # In this implementation, only set shortest path after checking every explored to
-        # unexplored vertex, i.e. will definitely be shortest path
-        # With heap, we recalculate shortest paths to unexplored vertices stored as keys, so
-        # each time we add a vertex to X and remove it from heap, we can simply call extract_min
-        # to get shortest path key
-        A[w_key] = A[v_key] + G.get_v(v_key).get_edge(w_key)  # shortest path from source to w
+        v_k, w_k = shortest_paths[min(shortest_paths.keys())]
+        X[w_k] = 1
+        # In this implementation, we only set the A[w_k] after checking every explored to
+        # unexplored vertex, i.e. it will definitively be the shortest path.
+        A[w_k] = A[v_k] + G.get_v(v_k).get_edge(w_k)
+        # With a heap, we have to recalculate the shortest paths to unexplored vertices (stored as
+        # Dijkstra greedy scores in the heap) each time we add to X and remove
+        # from the heap. This allows us to iteratively call extract_min to get the minimum
+        # Dijkstra greedy score, which is mapped to its vertex in path_v_map.
 
     result = []
-    for v_key in vertices:
-        path = A[v_key] if A[v_key] else 1000000
+    for v_k in vertices:
+        path = A[v_k] if A[v_k] else 1000000
         result.append(path)
     return result
 
