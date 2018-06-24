@@ -26,6 +26,7 @@ their positions in the heap.
 '''
 import pprint
 import time
+import math
 
 
 # input: file name
@@ -55,124 +56,209 @@ def create_graph(graph_obj):
 
 
 # Vertex class for undirected graphs
-class Vertex(object):
+class Vertex():
     def __init__(self, key):
-        self.key = key
-        self.nbrs = {}
+        self._key = key
+        self._nbrs = {}
 
     def __str__(self):
         return '{' + "'key': {}, 'nbrs': {}".format(
-            self.key,
-            self.nbrs
+            self._key,
+            self._nbrs
         ) + '}'
 
     def add_nbr(self, nbr_key, weight=1):
         if (nbr_key):
-            self.nbrs[nbr_key] = weight
+            self._nbrs[nbr_key] = weight
 
     def has_nbr(self, nbr_key):
-        return nbr_key in self.nbrs
+        return nbr_key in self._nbrs
 
     def get_nbr_keys(self):
-        return list(self.nbrs.keys())
+        return list(self._nbrs.keys())
 
     def remove_nbr(self, nbr_key):
-        if nbr_key in self.nbrs:
-            del self.nbrs[nbr_key]
+        if nbr_key in self._nbrs:
+            del self._nbrs[nbr_key]
 
     def get_edge(self, nbr_key):
-        if nbr_key in self.nbrs:
-            return self.nbrs[nbr_key]
+        if nbr_key in self._nbrs:
+            return self._nbrs[nbr_key]
 
 
 # Undirected graph class
 # Note: to maximize applications, add_edge, increase_edge, and remove_edge only add or remove an
 # edge for the 'from' vertex, and has_edge only checks the 'from' vertex.
-class Graph(object):
+class Graph():
     def __init__(self):
-        self.vertices = {}
+        self._vertices = {}
 
     # 'x in graph' will use this containment logic
     def __contains__(self, key):
-        return key in self.vertices
+        return key in self._vertices
 
     # 'for x in graph' will use this iter() definition, where x is a vertex in an array
     def __iter__(self):
-        return iter(self.vertices.values())
+        return iter(self._vertices.values())
 
     def __str__(self):
         output = '\n{\n'
-        vertices = self.vertices.values()
+        vertices = self._vertices.values()
         for v in vertices:
-            graph_key = "{}".format(v.key)
+            graph_key = "{}".format(v._key)
             v_str = "\n   'key': {}, \n   'nbrs': {}".format(
-                v.key,
-                v.nbrs
+                v._key,
+                v._nbrs
             )
             output += ' ' + graph_key + ': {' + v_str + '\n },\n'
         return output + '}'
 
     def add_v(self, v):
         if v:
-            self.vertices[v.key] = v
+            self._vertices[v._key] = v
         return self
 
     def get_v(self, key):
         try:
-            return self.vertices[key]
+            return self._vertices[key]
         except KeyError:
             return None
 
     def get_v_keys(self):
-        return list(self.vertices.keys())
+        return list(self._vertices.keys())
 
     # removes vertex as neighbor from all its neighbors, then deletes vertex
     def remove_v(self, key):
-        if key in self.vertices:
-            nbr_keys = self.vertices[key].get_nbr_keys()
+        if key in self._vertices:
+            nbr_keys = self._vertices[key].get_nbr_keys()
             for nbr_key in nbr_keys:
                 self.remove_edge(nbr_key, key)
-            del self.vertices[key]
+            del self._vertices[key]
         return self
 
     def add_edge(self, from_key, to_key, weight=1):
-        if from_key not in self.vertices:
+        if from_key not in self._vertices:
             self.add_v(Vertex(from_key))
-        if to_key not in self.vertices:
+        if to_key not in self._vertices:
             self.add_v(Vertex(to_key))
 
-        self.vertices[from_key].add_nbr(to_key, weight)
+        self._vertices[from_key].add_nbr(to_key, weight)
 
     # adds the weight for an edge if it exists already, with a default of 1
     def increase_edge(self, from_key, to_key, weight=1):
-        if from_key not in self.vertices:
+        if from_key not in self._vertices:
             self.add_v(Vertex(from_key))
-        if to_key not in self.vertices:
+        if to_key not in self._vertices:
             self.add_v(Vertex(to_key))
 
         weight_u_v = self.get_v(from_key).get_edge(to_key)
         new_weight_u_v = weight_u_v + weight if weight_u_v else weight
 
-        self.vertices[from_key].add_nbr(to_key, new_weight_u_v)
+        self._vertices[from_key].add_nbr(to_key, new_weight_u_v)
         return self
 
     def has_edge(self, from_key, to_key):
-        if from_key in self.vertices:
-            return self.vertices[from_key].has_nbr(to_key)
+        if from_key in self._vertices:
+            return self._vertices[from_key].has_nbr(to_key)
 
     def remove_edge(self, from_key, to_key):
-        if from_key in self.vertices:
-            self.vertices[from_key].remove_nbr(to_key)
+        if from_key in self._vertices:
+            self._vertices[from_key].remove_nbr(to_key)
 
     def for_each_v(self, cb):
-        for v in self.vertices:
+        for v in self._vertices:
             cb(v)
 
 
-# input:
-# output:
+# Heap class
+# input: 0 for min heap, 1 for max heap
 class Heap():
-    return {}
+    def __init__(self, type):
+        self._heap = []
+        self._type = type
+        self._compare = self._is_max_heap if type is 1 else self._is_min_heap
+
+    def __str__(self):
+        output = '['
+        le = len(self._heap)
+        for i, v in enumerate(self._heap):
+            txt = ', ' if i is not le - 1 else ''
+            output += str(v) + txt
+        return output + ']'
+
+    def _is_min_heap(self, node, parent):
+        return parent <= node
+
+    def _is_max_heap(self, node, parent):
+        return parent >= node
+
+    def _swap(self, i, j):
+        self._heap[i], self._heap[j] = self._heap[j], self._heap[i]
+
+    # inserts items in O(logn) time
+    def insert(self, node):
+        self._heap.append(node)
+        node_i = len(self._heap) - 1
+        parent = self._heap[math.floor(node_i / 2)]
+
+        while (not self._compare(node, parent)):
+            parent_i = math.floor(node_i / 2)
+            self._swap(node_i, parent_i)
+
+            node_i = parent_i
+            parent = self._heap[math.floor(node_i / 2)]
+
+        return self._heap
+
+    def _get_root(self):
+        return self._heap[0]
+
+    def _get_lesser_child_i(self):
+        # to do
+        return self
+
+    # extract minimum value in O(logn) time
+    def extract_min(self):
+        if self._type is not 0:
+            raise ValueError('Only min heaps support extract_min')
+
+        self._swap(0, len(self._heap) - 1)
+        root = self._heap.pop()
+
+        parent = self._get_root()
+        i = 0
+        child1 = self._heap[1]
+        child2 = self._heap[2]
+        while (parent > child1 or parent > child2):
+            if (child1 <= child2):
+                child1_i = i * 2 + 1
+                self._swap(i, child1_i)
+                parent = self._heap[child1_i]
+                i = child1_i
+            else:
+                child2_i = i * 2 + 2
+                self._swap(i, child2_i)
+                parent = self._heap[child2_i]
+                i = child2_i
+            if i * 2 + 1 > len(self._heap):
+                break
+            child1 = self._heap[i * 2 + 1]
+            child2 = self._heap[i * 2 + 2]
+        return root
+
+    # extract maximum value in O(logn) time
+    def extract_max(self):
+        if self._type is not 1:
+            raise ValueError('Only max heaps support extract_max')
+        return self._heap
+
+    # deletes item from anywhere in heap in O(logn) time
+    def delete(self):
+        return self._heap
+
+    # initializes a heap in O(n) time
+    def heapify(self):
+        return self._heap
 
 
 # input: Graph, source vertex key, and vertices to which to find a shortest path
@@ -230,6 +316,20 @@ def main():
     result = dijkstra_shortest_path(G, 1, [7, 37, 59, 82, 99, 115, 133, 165, 188, 197])
     print('result: ', result)
     print('elapsed time: ', time.time() - start)
+
+    # heap practice
+    heap = Heap(0)
+    heap.insert(4)
+    heap.insert(4)
+    heap.insert(8)
+    heap.insert(9)
+    heap.insert(4)
+    heap.insert(12)
+    heap.insert(9)
+    heap.insert(11)
+    heap.insert(13)
+    heap.extract_min()
+    print(heap)
 
 
 main()
