@@ -171,88 +171,83 @@ class Graph():
 
 
 # Heap class
-# input: 0 for min heap, 1 for max heap
+# input: order is 0 for max heap, 1 for min heap
 class Heap():
-    def __init__(self, type):
+    def __init__(self, order=1):
         self._heap = []
-        self._type = type
-        self._compare = self._is_max_heap if type is 1 else self._is_min_heap
+        self._min_heap = order
 
     def __str__(self):
         output = '['
-        le = len(self._heap)
+        size = len(self._heap)
         for i, v in enumerate(self._heap):
-            txt = ', ' if i is not le - 1 else ''
+            txt = ', ' if i is not size - 1 else ''
             output += str(v) + txt
         return output + ']'
 
-    def _is_min_heap(self, node, parent):
-        return parent <= node
-
-    def _is_max_heap(self, node, parent):
-        return parent >= node
+    def _is_balanced(self, p, c):
+        is_min_heap = p <= c
+        return is_min_heap if self._min_heap else not is_min_heap
 
     def _swap(self, i, j):
         self._heap[i], self._heap[j] = self._heap[j], self._heap[i]
 
-    # inserts items in O(logn) time
+    # inserts node in O(logn) time
     def insert(self, node):
         self._heap.append(node)
         node_i = len(self._heap) - 1
-        parent = self._heap[math.floor(node_i / 2)]
+        p = self._heap[math.floor(node_i / 2)]
 
-        while (not self._compare(node, parent)):
-            parent_i = math.floor(node_i / 2)
-            self._swap(node_i, parent_i)
+        while (not self._is_balanced(p, node)):
+            p_i = math.floor(node_i / 2)
+            self._swap(node_i, p_i)
 
-            node_i = parent_i
-            parent = self._heap[math.floor(node_i / 2)]
+            node_i = p_i
+            p = self._heap[math.floor(node_i / 2)]
 
         return self._heap
 
-    def _get_root(self):
-        return self._heap[0]
+    # input: parent index
+    # output: index of smaller or greater child, one index if other DNE, or None
+    def _get_swapped_child_i(self, p_i):
+        size = len(self._heap)
+        i = p_i * 2 + 1
+        j = p_i * 2 + 2
+        if size <= i:
+            return None
+        elif size <= j:
+            return i
 
-    def _get_lesser_child_i(self):
-        # to do
-        return self
+        if self._heap[i] > self._heap[j]:
+            return j if self._min_heap else i
+        else:
+            return i if self._min_heap else j
 
-    # extract minimum value in O(logn) time
-    def extract_min(self):
-        if self._type is not 0:
-            raise ValueError('Only min heaps support extract_min')
-
+    def _extract_root(self):
         self._swap(0, len(self._heap) - 1)
         root = self._heap.pop()
 
-        parent = self._get_root()
-        i = 0
-        child1 = self._heap[1]
-        child2 = self._heap[2]
-        while (parent > child1 or parent > child2):
-            if (child1 <= child2):
-                child1_i = i * 2 + 1
-                self._swap(i, child1_i)
-                parent = self._heap[child1_i]
-                i = child1_i
-            else:
-                child2_i = i * 2 + 2
-                self._swap(i, child2_i)
-                parent = self._heap[child2_i]
-                i = child2_i
-            if i * 2 + 1 > len(self._heap):
-                break
-            child1 = self._heap[i * 2 + 1]
-            child2 = self._heap[i * 2 + 2]
+        p_i = 0
+        c_i = self._get_swapped_child_i(p_i)
+        while (c_i and not self._is_balanced(self._heap[p_i], self._heap[c_i])):
+            self._swap(p_i, c_i)
+            p_i = c_i
+            c_i = self._get_swapped_child_i(p_i)
         return root
 
-    # extract maximum value in O(logn) time
-    def extract_max(self):
-        if self._type is not 1:
-            raise ValueError('Only max heaps support extract_max')
-        return self._heap
+    # extracts minimum value in O(logn) time
+    def extract_min(self):
+        if not self._min_heap:
+            raise ValueError('Only min heaps support extract_min')
+        return self._extract_root()
 
-    # deletes item from anywhere in heap in O(logn) time
+    # extracts maximum value in O(logn) time
+    def extract_max(self):
+        if self._min_heap:
+            raise ValueError('Only max heaps support extract_max.')
+        return self._extract_root()
+
+    # deletes node from anywhere in heap in O(logn) time
     def delete(self):
         return self._heap
 
@@ -318,7 +313,7 @@ def main():
     print('elapsed time: ', time.time() - start)
 
     # heap practice
-    heap = Heap(0)
+    heap = Heap()
     heap.insert(4)
     heap.insert(4)
     heap.insert(8)
@@ -328,6 +323,7 @@ def main():
     heap.insert(9)
     heap.insert(11)
     heap.insert(13)
+    heap.extract_min()
     heap.extract_min()
     print(heap)
 
