@@ -193,6 +193,7 @@ class Heap():
         self._heap[i], self._heap[j] = self._heap[j], self._heap[i]
 
     # input: parent and child indices
+    # output: final index of child
     def _sift_up(self, p_i, c_i):
         p = self._heap[p_i]
         c = self._heap[c_i]
@@ -202,6 +203,7 @@ class Heap():
 
             c_i = p_i
             p = self._heap[(c_i - 1) // 2]
+        return c_i
 
     # input: parent and child indices
     def _sift_down(self, p_i, c_i):
@@ -214,12 +216,13 @@ class Heap():
         return self._heap
 
     # inserts node in O(logn) time
+    # output: node insertion index
     def insert(self, node):
         self._heap.append(node)
         node_i = len(self._heap) - 1
-        self._sift_up((node_i - 1) // 2, node_i)
+        insert_i = self._sift_up((node_i - 1) // 2, node_i)
 
-        return self._heap
+        return insert_i
 
     # input: parent index
     # output: index of smaller or greater child, one index if other DNE, or None
@@ -260,7 +263,7 @@ class Heap():
     # input: key (i.e. index) of node to delete
     def delete(self, key):
         self._swap(key, len(self._heap) - 1)
-        self._heap.pop()
+        removed = self._heap.pop()
 
         p_i = (key - 1) // 2
         if not self._is_balanced(self._heap[p_i], self._heap[key]):
@@ -268,69 +271,94 @@ class Heap():
         else:
             self._sift_down(p_i, key)
 
-        return self._heap
+        return removed
 
     # initializes a heap in O(n) time
     def heapify(self):
         return self._heap
 
 
-# input: array of nodes and order defaulted to 1 for min heap
-# output: Heap instantiated with intput array of nodes
-def create_heap(nodes, order=1):
-    heap = Heap(order)
-    for node in nodes:
-        heap.insert(node)
-    return heap
+'''
+# input: Heap and object with shortest paths and corresponding v-w vertices
+# output: updated vertex to heap index mapping
+def update_vertex_heap_index_map(heap, shortest_paths):
+    v_heap_i_map = {}
+    heap = heap.get_nodes()
+    for heap_i, path in enumerate(heap):
+        w = shortest_paths[path][1]
+        v_heap_i_map[w] = heap_i
+    return v_heap_i_map
+'''
 
 
 # input: Graph, source vertex key, and vertices to which to find a shortest path
 # output: shortest path distances from source to input vertices
 def dijkstra_shortest_path(G, source_k, vertices):
     X = {}  # vertices explored
-    A = {}  # shortest path distances from source vertex
+    A = {}  # shortest path distances from source
     X[source_k] = 1
     A[source_k] = 0
-    heap = Heap()
-    path_v_map = {}
+
+    # heap implementation
+    # heap = Heap()
+    # v_heap_i_map = {}
 
     G_keys_len = len(G.get_v_keys())
     while len(X.keys()) is not G_keys_len:
         # records shortest path for every explored vertex to one of its unexplored neighbors
-        # Ex: {100: [2,3]} -> shortest path from vertex 2 is to 3 with a distance of 100
+        # {100: [2,3]} -> shortest path from 2 is to 3 with distance 100
         shortest_paths = {}
 
         for v_k in X:
             v = G.get_v(v_k)
             nbr_keys = list(filter(lambda k: k not in X, v.get_nbr_keys()))
-
-            nbr_paths = {}
+            nbr_paths = {}  # local shortest paths
             for nbr_k in nbr_keys:
-                # local shortest path
                 nbr_paths[nbr_k] = A[v_k] + v.get_edge(nbr_k)
-                # path = A[v_k] + v.get_edge(nbr_k)
-                # heap.insert(path)
-                # path_v_map[path] = nbr_k
 
             if nbr_paths:
                 min_nbr_k = min(nbr_paths, key=nbr_paths.get)
+                min_path = nbr_paths[min_nbr_k]
                 # record shortest path for v_k. if v_k = 2, {100: [2,3]}
-                shortest_paths[nbr_paths[min_nbr_k]] = [v_k, min_nbr_k]
-            # if heap.get_nodes():
-            #     min_path = heap.extract_min()
-            #     min_nbr_k = path_v_map[min_path]
-            #     shortest_paths[min_path] = [v_k, min_nbr_k]
+                shortest_paths[min_path] = [v_k, min_nbr_k]
 
-        # book-keeping
+                # heap implementation
+                # insert_i = heap.insert(min_path)
+                # v_heap_i_map[min_nbr_k] = insert_i
+
+        # book-keeping for w_k
         v_k, w_k = shortest_paths[min(shortest_paths.keys())]
         X[w_k] = 1
-        # In this implementation, we only set the A[w_k] after checking every explored to
+
+        '''
+        heap implementation
+        heap_min_path = heap.extract_min()
+        v_heap_i_map = update_vertex_heap_index_map(heap, shortest_paths)
+        v_k, w_k = shortest_paths[heap_min_path]
+        '''
+
+        # in this implementation, we only set the A[w_k] after checking every explored to
         # unexplored vertex, i.e. it will definitively be the shortest path.
         A[w_k] = A[v_k] + G.get_v(v_k).get_edge(w_k)
-        # With a heap, we have to recalculate the shortest paths to unexplored vertices (stored as
-        # Dijkstra greedy scores in the heap) each time we add to X and remove
-        # from the heap. This allows us to iteratively call extract_min to get the minimum
-        # Dijkstra greedy score, which is mapped to its vertex in path_v_map.
+
+        '''
+        heap implementation
+        with a heap, we have to update the shortest paths to unexplored vertices (stored as
+        Dijkstra greedy scores in the heap) each time we add to X and remove
+        from the heap. This allows us to iteratively call extract_min to get the minimum
+        Dijkstra greedy score, which is mapped to its vertex in path_v_map.
+        w_nbr_keys = G.get_v(w_k).get_nbr_keys()
+        for w_nbr_k in w_nbr_keys:
+            w_w_nbr_edge = G.get_v(w_k).get_edge(w_nbr_k)
+            if w_nbr_k not in X:
+                if v_heap_i_map.get(w_nbr_k, 0):
+                    removed_path = heap.delete(v_heap_i_map[w_nbr_k])
+                    w_nbr_k_path = min(removed_path, heap_min_path + w_w_nbr_edge)
+                    # record shortest path for v_k. if v_k = 2, {100: [2,3]}
+                    shortest_paths[w_nbr_k_path] = [w_k, w_nbr_k]
+                    insert_i = heap.insert(w_nbr_k_path)
+                    v_heap_i_map[w_nbr_k] = insert_i
+        '''
 
     result = []
     for v_k in vertices:
@@ -349,21 +377,6 @@ def main():
     result = dijkstra_shortest_path(G, 1, [7, 37, 59, 82, 99, 115, 133, 165, 188, 197])
     print('result: ', result)
     print('elapsed time: ', time.time() - start)
-
-    # heap practice
-    heap = Heap()
-    heap.insert(4)
-    heap.insert(4)
-    heap.insert(8)
-    heap.insert(9)
-    heap.insert(4)
-    heap.insert(12)
-    heap.insert(9)
-    heap.insert(11)
-    heap.insert(13)
-    heap.extract_min()
-    heap.extract_min()
-    print(heap)
 
 
 main()
