@@ -193,8 +193,9 @@ class Heap():
         self._heap[i], self._heap[j] = self._heap[j], self._heap[i]
 
     # input: parent and child indices
-    # output: final index of child
     def _sift_up(self, p_i, c_i):
+        if p_i == -1:
+            return
         p = self._heap[p_i]
         c = self._heap[c_i]
         while (not self._is_balanced(p, c)):
@@ -202,8 +203,9 @@ class Heap():
             self._swap(c_i, p_i)
 
             c_i = p_i
+            if c_i is 0:
+                break
             p = self._heap[(c_i - 1) // 2]
-        return c_i
 
     # input: parent and child indices
     def _sift_down(self, p_i, c_i):
@@ -212,17 +214,18 @@ class Heap():
             p_i = c_i
             c_i = self._get_swapped_child_index(p_i)
 
+    def get_root(self):
+        if self._heap:
+            return self._heap[0]
+
     def get_nodes(self):
         return self._heap
 
     # inserts node in O(logn) time
-    # output: node insertion index
     def insert(self, node):
         self._heap.append(node)
         node_i = len(self._heap) - 1
-        insert_i = self._sift_up((node_i - 1) // 2, node_i)
-
-        return insert_i
+        self._sift_up((node_i - 1) // 2, node_i)
 
     # input: parent index
     # output: index of smaller or greater child, one index if other DNE, or None
@@ -241,11 +244,11 @@ class Heap():
             return i if self._min_heap else j
 
     def _extract_root(self):
-        self._swap(0, len(self._heap) - 1)
-        root = self._heap.pop()
-        self._sift_down(0, self._get_swapped_child_index(0))
-
-        return root
+        if self._heap:
+            self._swap(0, len(self._heap) - 1)
+            root = self._heap.pop()
+            self._sift_down(0, self._get_swapped_child_index(0))
+            return root
 
     # extracts minimum value in O(logn) time
     def extract_min(self):
@@ -274,7 +277,7 @@ class Heap():
         return removed
 
     # initializes a heap in O(n) time
-    def heapify(self):
+    def heapify(self):  # to do
         return self._heap
 
 
