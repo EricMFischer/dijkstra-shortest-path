@@ -80,14 +80,12 @@ class Vertex():
         if nbr_key in self._nbrs:
             del self._nbrs[nbr_key]
 
-    def get_edge(self, nbr_key):
+    def get_e(self, nbr_key):
         if nbr_key in self._nbrs:
             return self._nbrs[nbr_key]
 
 
 # Undirected graph class
-# Note: to maximize applications, add_edge, increase_edge, and remove_edge only add or remove an
-# edge for the 'from' vertex, and has_edge only checks the 'from' vertex.
 class Graph():
     def __init__(self):
         self._vertices = {}
@@ -131,38 +129,47 @@ class Graph():
         if key in self._vertices:
             nbr_keys = self._vertices[key].get_nbr_keys()
             for nbr_key in nbr_keys:
-                self.remove_edge(nbr_key, key)
+                self.remove_e(nbr_key, key)
             del self._vertices[key]
-        return self
 
-    def add_edge(self, from_key, to_key, weight=1):
+    def add_e(self, from_key, to_key, weight=1):
         if from_key not in self._vertices:
             self.add_v(Vertex(from_key))
         if to_key not in self._vertices:
             self.add_v(Vertex(to_key))
 
         self._vertices[from_key].add_nbr(to_key, weight)
+        self._vertices[to_key].add_nbr(from_key, weight)
+
+    def get_e(self, from_key, to_key):
+        if from_key and to_key in self._vertices:
+            return self.get_v(from_key).get_e(to_key)
 
     # adds the weight for an edge if it exists already, with a default of 1
-    def increase_edge(self, from_key, to_key, weight=1):
+    def increase_e(self, from_key, to_key, weight=1):
         if from_key not in self._vertices:
             self.add_v(Vertex(from_key))
         if to_key not in self._vertices:
             self.add_v(Vertex(to_key))
 
-        weight_u_v = self.get_v(from_key).get_edge(to_key)
+        weight_u_v = self.get_v(from_key).get_e(to_key)
         new_weight_u_v = weight_u_v + weight if weight_u_v else weight
 
-        self._vertices[from_key].add_nbr(to_key, new_weight_u_v)
-        return self
+        weight_v_u = self.get_v(to_key).get_e(from_key)
+        new_weight_v_u = weight_v_u + weight if weight_v_u else weight
 
-    def has_edge(self, from_key, to_key):
+        self._vertices[from_key].add_nbr(to_key, new_weight_u_v)
+        self._vertices[to_key].add_nbr(from_key, new_weight_v_u)
+
+    def has_e(self, from_key, to_key):
         if from_key in self._vertices:
             return self._vertices[from_key].has_nbr(to_key)
 
-    def remove_edge(self, from_key, to_key):
+    def remove_e(self, from_key, to_key):
         if from_key in self._vertices:
             self._vertices[from_key].remove_nbr(to_key)
+        if to_key in self._vertices:
+            self._vertices[to_key].remove_nbr(from_key)
 
     def for_each_v(self, cb):
         for v in self._vertices:
@@ -294,10 +301,10 @@ def update_vertex_heap_index_map(heap, shortest_paths):
 '''
 
 
-# input: Graph, source vertex key, and vertices to which to find a shortest path
+# input: Graph, source key, and vertices to which to find a shortest path
 # output: shortest path distances from source to input vertices
 def dijkstra_shortest_path(G, source_k, vertices):
-    X = {}  # vertices explored
+    X = {}  # explored vertices
     A = {}  # shortest path distances from source
     X[source_k] = 1
     A[source_k] = 0
@@ -308,20 +315,20 @@ def dijkstra_shortest_path(G, source_k, vertices):
 
     G_keys_len = len(G.get_v_keys())
     while len(X.keys()) is not G_keys_len:
-        # records shortest path for every explored vertex to one of its unexplored neighbors
+        # records shortest path crossing the cut for every explored vertex
         # {100: [2,3]} -> shortest path from 2 is to 3 with distance 100
         shortest_paths = {}
 
         for v_k in X:
             v = G.get_v(v_k)
-            nbr_keys = list(filter(lambda k: k not in X, v.get_nbr_keys()))
-            nbr_paths = {}  # local shortest paths
+            nbr_keys = filter(lambda k: k not in X, v.get_nbr_keys())
+            local_paths = {}  # local shortest paths
             for nbr_k in nbr_keys:
-                nbr_paths[nbr_k] = A[v_k] + v.get_edge(nbr_k)
+                local_paths[nbr_k] = A[v_k] + v.get_e(nbr_k)
 
-            if nbr_paths:
-                min_nbr_k = min(nbr_paths, key=nbr_paths.get)
-                min_path = nbr_paths[min_nbr_k]
+            if local_paths:
+                min_nbr_k = min(local_paths, key=local_paths.get)
+                min_path = local_paths[min_nbr_k]
                 # record shortest path for v_k. if v_k = 2, {100: [2,3]}
                 shortest_paths[min_path] = [v_k, min_nbr_k]
 
@@ -342,7 +349,7 @@ def dijkstra_shortest_path(G, source_k, vertices):
 
         # in this implementation, we only set the A[w_k] after checking every explored to
         # unexplored vertex, i.e. it will definitively be the shortest path.
-        A[w_k] = A[v_k] + G.get_v(v_k).get_edge(w_k)
+        A[w_k] = A[v_k] + G.get_v(v_k).get_e(w_k)
 
         '''
         heap implementation
@@ -352,7 +359,7 @@ def dijkstra_shortest_path(G, source_k, vertices):
         Dijkstra greedy score, which is mapped to its vertex in path_v_map.
         w_nbr_keys = G.get_v(w_k).get_nbr_keys()
         for w_nbr_k in w_nbr_keys:
-            w_w_nbr_edge = G.get_v(w_k).get_edge(w_nbr_k)
+            w_w_nbr_edge = G.get_v(w_k).get_e(w_nbr_k)
             if w_nbr_k not in X:
                 if v_heap_i_map.get(w_nbr_k, 0):
                     removed_path = heap.delete(v_heap_i_map[w_nbr_k])
